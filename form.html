@@ -1,0 +1,36 @@
+<form action="#">
+  <fieldset>
+    <legend>Create a Reservation</legend>
+    <div id="perfect-res-form-alert" class="perfect-input-group"></div>
+    <div id="perfect-res-name" class="perfect-input-group">
+      <label for="name">Name</label>
+      <input type="text" name="name" maxlength="40" required autofocus>
+    </div>
+    <div id="perfect-res-phone" class="perfect-input-group">
+      <label for="phone">Phone</label>
+      <input type="tel" name="phone" maxlength="10" required>
+      <span>Phone must be able to receive SMS messages.</span>
+    </div>
+    <div id="perfect-res-email" class="perfect-input-group">
+      <label for="email">Email</label>
+      <input type="email" name="email" maxlength="50" required>
+    </div>
+    <div id="perfect-res-date" class="perfect-input-group">
+      <label for="date">Date</label>
+      <input type="date" name="date" required>
+    </div>
+    <div id="perfect-res-party-size" class="perfect-input-group">
+      <label for="party-size">Party Size</label>
+      <select name="party-size">
+        <option value="0" selected="true">Select Size</option>
+      </select>
+    </div>
+    <div id="perfect-res-time" class="perfect-input-group">
+      <label for="time">Time</label>
+      <select name="time" disabled="true"></select>
+    </div>
+    <div id="perfect-res-buttons" class="perfect-input-group">
+      <input type="submit" value="Make Reservation" disabled="true">
+    </div>
+  </fieldset>
+</form>
