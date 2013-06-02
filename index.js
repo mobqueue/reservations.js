@@ -20,11 +20,11 @@ var PERFECT_API_URL = 'http://localhost:5000/restaurant/public'
  */
 
 $(function() {
-  get('/auth', function(err, xhr) {
+  get('/auth', function(err) {
     if (!err) {
       showReservationForm();
     } else {
-      alert('Unable to load Perfect form.');
+      window.alert('Unable to load Perfect form.');
     }
   });
 });
@@ -34,7 +34,7 @@ $(function() {
  */
 
 function showReservationForm() {
-  $('#perfect-res-form').html(template);
+  $('#perfect-res-form').html(form);
   $('#perfect-res-date input').val((new Date()).toISOString().substring(0, 10));
   $('#perfect-res-form form').submit(handleFormSubmission);
   $('#perfect-res-date input').change(handleDateChange);
@@ -50,7 +50,7 @@ function showReservationForm() {
     if (!err) {
       var partySizeDropdown = document.querySelector('#perfect-res-party-size select');
 
-      for (var i = 0; i < partySizes.length, i++) {
+      for (var i = 0; i < partySizes.length; i++) {
         var option = document.createElement('option')
           , size = partySizes[i];
 
@@ -243,7 +243,7 @@ function get(url, callback, context) {
     url: PERFECT_API_URL + url
   , type: 'GET'
   , headers: {
-      'X-Perfect-API-Key': PERFECT_API_KEY
+      'X-Perfect-API-Key': window.PERFECT_API_KEY
     , 'X-Perfect-API-Version': PERFECT_API_VERSION
     }
   , success: function(data, text, xhr) {
@@ -264,7 +264,7 @@ function post(url, data, callback, context) {
     url: PERFECT_API_URL + url
   , type: 'POST'
   , headers: {
-      'X-Perfect-API-Key': PERFECT_API_KEY
+      'X-Perfect-API-Key': window.PERFECT_API_KEY
     , 'X-Perfect-API-Version': PERFECT_API_VERSION
     }
   , data: data
@@ -298,7 +298,7 @@ function addAlert(field, message) {
  */
 
 function setTimeAndSubmitDisabled(disabled) {
-  if (disabled == null) {
+  if (!disabled) {
     disabled = true;
   }
 

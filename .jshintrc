@@ -1,0 +1,11 @@
+{
+  "laxcomma": true
+, "expr": true
+, "camelcase": true
+, "curly": true
+, "indent": 2
+, "quotmark": "single"
+, "undef": true
+, "browser": true
+, "node": true
+}
