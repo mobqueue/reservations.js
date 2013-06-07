@@ -5,15 +5,23 @@
   "version": "0.0.1",
   "keywords": [],
   "dependencies": {
-    "component/jquery": "*"
+    "component/classes": "*",
+    "component/event": "*",
+    "component/jquery": "*",
+    "component/spinner": "*",
+    "component/value": "*",
+    "jb55/domready": "*",
+    "visionmedia/debug": "*",
+    "visionmedia/superagent": "*"
   },
   "development": {},
   "license": "MIT",
   "main": "index.js",
   "scripts": [
     "index.js",
-    "confirm.js",
-    "form.js",
-    "success.js"
+    "template/alert.js",
+    "template/confirm.js",
+    "template/form.js",
+    "template/success.js"
   ]
 }

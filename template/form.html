@@ -1,0 +1,40 @@
+<form action="#">
+  <fieldset>
+    <legend>Reservations</legend>
+    <div id="perfect-spinner"></div>
+    <div id="perfect-create">
+      <h3>Find a Reservation</h3>
+      <div id="perfect-alerts" class="perfect-input-group"></div>
+      <div class="perfect-input-group">
+        <label for="name">Name</label>
+        <input id="perfect-name" type="text" name="name" maxlength="40" required autofocus>
+      </div>
+      <div class="perfect-input-group">
+        <label for="phone">Phone</label>
+        <input id="perfect-phone" type="tel" name="phone" maxlength="10" required>
+        <span>Phone must be able to receive SMS messages.</span>
+      </div>
+      <div class="perfect-input-group">
+        <label for="email">Email</label>
+        <input id="perfect-email" type="email" name="email" maxlength="50" required>
+      </div>
+      <div class="perfect-input-group">
+        <label for="date">Date</label>
+        <input id="perfect-date" type="date" name="date" required>
+      </div>
+      <div class="perfect-input-group">
+        <label for="party-size">Party Size</label>
+        <select id="perfect-party-size" name="party-size">
+          <option value="0" selected="true">Select Size</option>
+        </select>
+      </div>
+      <div class="perfect-input-group">
+        <label for="time">Time</label>
+        <select id="perfect-time" name="time" disabled="true"></select>
+      </div>
+      <div class="perfect-input-group">
+        <input id="perfect-submit" type="submit" value="Make Reservation" disabled="true">
+      </div>
+    </div>
+  </fieldset>
+</form>

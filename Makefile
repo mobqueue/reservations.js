@@ -1,25 +1,30 @@
 
-build: jshint components index.js confirm.js form.js success.js
-	@component build --dev --verbose
-
-%.js: %.html
-	@component convert $<
-
-components: component.json
-	@component install --dev
+build: jshint components index.js template/alert.js template/confirm.js template/form.js template/success.js
+	component build --dev --verbose
 
 clean:
-	@rm -fr build components confirm.js form.js success.js
+	rm -fr build components template/alert.js template/confirm.js template/form.js template/success.js
+
+components: component.json
+	component install --dev
+
+install:
+	npm install --global component jshint uglify-js
+	$(MAKE) release
 
 jshint: index.js
-	@jshint --verbose index.js
+	jshint --verbose index.js
 
-min: reservations.js
-	@uglifyjs --output reservations.min.js reservations.js
+reservations.min.js: reservations.js
+	uglifyjs --output reservations.min.js reservations.js
 
-release: clean build reservations.js min
+template/%.js: template/%.html
+	minstache < $< > $@
 
 reservations.js: build
-	@component build --standalone reservations --out . --name reservations
+	component build --standalone Reservations --out . --name Reservations
 
-.PHONY: clean
+watch:
+	watch $(MAKE) reservations.js
+
+.PHONY: build clean install jshint watch

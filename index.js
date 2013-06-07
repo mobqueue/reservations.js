@@ -3,64 +3,78 @@
  * Dependencies
  */
 
-var $ = require('jquery')
-  , confirm = require('./confirm')
-  , form = require('./form')
-  , success = require('./success');
+var alertTemplate = require('./template/alert')
+  , classes = require('classes')
+  , confirmTemplate = require('./template/confirm')
+  , debug = require('debug')('reservations.js')
+  , domready = require('domready')
+  , events = require('event')
+  , form = require('./template/form')
+  , Spinner = require('spinner')
+  , success = require('./template/success')
+  , superagent = require('superagent')
+  , value = require('value');
 
 /**
  * API Endpoints
  */
 
-var PERFECT_API_URL = 'http://localhost:5000/restaurant/public'
+var PERFECT_API_KEY = null
+  , PERFECT_API_URL = 'http://localhost:5000/restaurant/public'
   , PERFECT_API_VERSION = '1.4.0';
 
 /**
- *  Once jQuery is rearing, check if this domain is authed, then show the form
+ * Run
  */
 
-$(function() {
-  get('/auth', function(err) {
-    if (!err) {
-      showReservationForm();
-    } else {
-      window.alert('Unable to load Perfect form.');
-    }
+module.exports.activate = function(key) {
+  debug('activating with %s', key);
+
+  // save the key
+  PERFECT_API_KEY = key;
+  
+  // make sure the dom is loaded
+  domready(function() {
+    debug('authenticating');
+    get('/auth', function(err) {
+      if (err) {
+        debug(err);
+        window.alert('Unable to load Perfect form.\n' + err.message);
+      } else {
+        debug('authenticated');
+        setup();
+      }
+    });
   });
-});
+};
 
 /**
  * Show reservation form
  */
 
-function showReservationForm() {
-  $('#perfect-res-form').html(form);
-  $('#perfect-res-date input').val((new Date()).toISOString().substring(0, 10));
-  $('#perfect-res-form form').submit(handleFormSubmission);
-  $('#perfect-res-date input').change(handleDateChange);
-  $('#perfect-res-party-size select').change(retrieveAvailableTimes);
+function setup() {
+  debug('showing reservation form');
 
-  // Accept numeric input only
-  $('#perfect-res-phone input').keydown(function(e) {
-    var key = e.charCode || e.keyCode || 0;
-    return key === 8 || key === 46 || (key >= 37 && key <= 40) || (key >= 48 && key <= 57 && !e.shiftKey) || (key >= 96 && key <= 105 && !e.shiftKey);
-  });
+  // append the form
+  var $perfect = document.getElementById('perfect-reservation-form');
+  $perfect.innerHTML = form();
 
-  get('/reservations/partySizes', function(err, xhr, partySizes) {
-    if (!err) {
-      var partySizeDropdown = document.querySelector('#perfect-res-party-size select');
+  // inputs
+  var $form = $perfect.getElementsByTagName('form')[0]
+    , $date = document.getElementById('perfect-date')
+    , $partySize = document.getElementById('perfect-party-size')
+    , $phone = document.getElementById('perfect-phone');
 
-      for (var i = 0; i < partySizes.length; i++) {
-        var option = document.createElement('option')
-          , size = partySizes[i];
+  // set the default date
+  value($date, (new Date()).toISOString().substring(0, 10));
 
-        option.innerText = size;
-        option.value = size;
+  // event handlers
+  events.bind($form, 'submit', handleFormSubmission);
+  events.bind($date, 'change', handleDateChange);
+  events.bind($partySize, 'change', retrieveAvailableTimes);
+  events.bind($phone, 'keydown', numericInputOnly);
 
-        partySizeDropdown.appendChild(option);
-      }
-    }
-  });
+  getAvailablePartySizes();
 }
 
 /**
@@ -69,56 +83,78 @@ function showReservationForm() {
 
 function handleFormSubmission(event) {
   event.preventDefault();
-  $('#perfect-res-form-alert').empty();
+  debug('handling form submission');
+
+  // get elements
+  var $alerts = document.getElementById('perfect-alerts')
+    , $create = document.getElementById('perfect-create')
+    , $date = document.getElementById('perfect-date')
+    , $form = document.getElementById('perfect-reservation-form')
+    , $fieldset = $form.getElementsByTagName('fieldset')[0]
+    , $name = document.getElementById('perfect-name')
+    , $phone = document.getElementById('perfect-phone')
+    , $time = document.getElementById('perfect-time');
+
+  // clear alerts
+  $alerts.innerHTML = null;
  
-  var displayTime = $('#perfect-res-time select option:selected').html()
-    , displayDate = $('#perfect-res-date input').val();
+  var displayTime = $time.options[$time.selectedIndex].innerText
+    , displayDate = value($date);
  
   var reservation = {
-    name: $('#perfect-res-name input').val()
-  , phone: parseInt($('#perfect-res-phone input').val(), 10)
+    name: value($name)
+  , phone: parseInt(value($phone), 10)
   , partySize: getPartySize()
   , date: getDate()
-  , time: parseInt($('#perfect-res-time select').val(), 10)
+  , time: parseInt(value($time), 10)
   };
 
   if (isValidData(reservation)) {
-    var confirm = $('#perfect-res-confirm');
-    
-    confirm.find('.party-size').html(reservation.partySize);
-    confirm.find('.time').html(displayTime);
-    confirm.find('.date').html(displayDate);
-    confirm.find('.name').html(reservation.name);
-    
-    confirm.find('#perfect-res-go-back').click(function(e) {
-      e.preventDefault();
-      $('#perfect-res-form form').css('display', 'block');
-      $('#perfect-res-confirm').css('display', 'none');
+    // show confirmation screen
+    $create.style.display = 'none';
+
+    $fieldset.innerHTML += confirmTemplate({
+      partySize: reservation.partySize
+    , time: displayTime
+    , date: displayDate
+    , name: reservation.name
     });
 
-    confirm.find('#perfect-res-confirm-button').click(function(e) {
+    var $goBack = document.getElementById('perfect-go-back')
+      , $confirmButton = document.getElementById('perfect-confirm-button');
+    
+    events.bind($goBack, 'click', function(e) {
+      debug('going back to the form');
       e.preventDefault();
+      document.getElementById('perfect-confirm').remove();
+      document.getElementById('perfect-create').style.display = 'block';
+      setTimeAndSubmitDisabled(true);
+    });
+
+    events.bind($confirmButton, 'click', function(e) {
+      debug('confirming reservation for %s of %s at %s on %s', reservation.name, reservation.partySize, reservation.time, reservation.date);
+      e.preventDefault();
+
       reservation.time = midnight(reservation.date).valueOf() + reservation.time * 1000 * 60;
       delete reservation.date;
 
-      post('/reservations', reservation, function(err, xhr, data) {
+      post('/reservations', reservation, function(err) {
+        document.getElementById('perfect-confirm').remove();
         if (err) {
-          $('#perfect-res-form form').css('display', 'block');
-          $('#perfect-res-confirm').css('display', 'none');
+          document.getElementById('perfect-create').style.display = 'block';
           addAlert('form', 'There was a problem creating your reservation. If you have already created a reservation with this phone number you will not be able to create a second on the same day. Please refresh the page and try again.');
         } else {
-          var success = $('#perfect-res-success');
-          success.find('.party-size').html(reservation.partySize);
-          success.find('.time').html(displayTime);
-          success.find('.date').html(displayDate);
-          $('#perfect-res-confirm').css('display', 'none');
-          success.css('display', 'block');
+          // show success screen
+          $fieldset.innerHTML += success({
+            partySize: reservation.partySize
+          , time: displayTime
+          , date: displayDate
+          });
         }
       });
     });
-    $('#perfect-res-form form').css('display', 'none');
-    confirm.css('display', 'block');
   }
+
   return false;
 }
 
@@ -127,10 +163,11 @@ function handleFormSubmission(event) {
  */
 
 function handleDateChange(event) {
+  debug('handling date change');
   var date = getDate()
     , today = midnight(new Date());
   if (date.valueOf() < today.valueOf()) {
-    $(this).val(today.toISOString().substring(0, 10));
+    value(event.target, today.toISOString().substring(0, 10));
   } else if (today.getMonth() < date.getMonth() && today.getDate() < date.getDate()) {
     addAlert('date', 'Reservation date must be within 30 days.');
   } else {
@@ -143,30 +180,37 @@ function handleDateChange(event) {
  */
 
 function retrieveAvailableTimes() {
-  var partySize = getPartySize()
-    , date = getDate();
+  debug('retrieving available times');
 
-  $('#perfect-res-form-alert').empty();
+  var $alerts = document.getElementById('perfect-alerts')
+    , partySize = getPartySize()
+    , date = getDate()
+    , $time = document.getElementById('perfect-time');
+
+  $alerts.innerHTML = null;
 
   if (isNaN(date.getTime()) || date.valueOf() < midnight(new Date()).valueOf() || partySize === 0) {
-    setTimeAndSubmitDisabled();
+    setTimeAndSubmitDisabled(true);
   } else {
-    get('/reservations/availableTimes/' + partySize + '/' + (date.getFullYear()) + '/' + (date.getMonth() + 1) + '/' + (date.getDate()), function(err, xhr, data) {
+    get('/reservations/availableTimes/' + partySize + '/' + (date.getFullYear()) + '/' + (date.getMonth() + 1) + '/' + (date.getDate()), function(err, data) {
       if (!err) {
-        var timeDropDown = $('#perfect-res-time select');
-        timeDropDown.empty();
+        $time.innerHTML = null;
 
         if (data.length && data.length > 0) {
-          $.each(data, function(index, time) {
-            var h = time > 720 ? time / 60 - 12 : time / 60 
+          for (var i = 0; i < data.length; i++) {
+            var time = data[i]
+              , h = time > 720 ? time / 60 - 12 : time / 60 
               , m = time % 60 === 0 ? '00' : '' + (time % 60)
               , a = time > 720 ? ' pm' : ' am'
               , format = parseInt(h, 10) + ':' + m + a
               , option = document.createElement('option');
             
-            option = $(option).html(format).val(time);
-            timeDropDown.append(option);
-          });
+            option.innerHTML = format;
+            option.value = time;
+
+            $time.appendChild(option);
+          }
+
           setTimeAndSubmitDisabled(false);
         } else {
           addAlert('date', 'No reservations available for parties of ' + partySize + ' on ' + date);
@@ -177,10 +221,34 @@ function retrieveAvailableTimes() {
 }
 
 /**
+ * Get available party sizes
+ */
+
+function getAvailablePartySizes() {
+  debug('get available party sizes');
+  get('/reservations/partySizes', function(err, partySizes) {
+    if (!err) {
+      var $partySize = document.getElementById('perfect-party-size');
+      for (var i = 0; i < partySizes.length; i++) {
+        var option = document.createElement('option')
+          , size = partySizes[i];
+
+        option.innerText = size;
+        option.value = size;
+
+        $partySize.appendChild(option);
+      }
+    }
+  });
+}
+
+/**
  * Check if the data is valid
  */
 
 function isValidData(data) {
+  debug('validating data');
+
   var name = data.name
     , phone = data.phone
     , date = data.date
@@ -235,61 +303,29 @@ function midnight(date) {
 }
 
 /**
- * Wrapper for get
- */
-
-function get(url, callback, context) {
-  $.ajax({
-    url: PERFECT_API_URL + url
-  , type: 'GET'
-  , headers: {
-      'X-Perfect-API-Key': window.PERFECT_API_KEY
-    , 'X-Perfect-API-Version': PERFECT_API_VERSION
-    }
-  , success: function(data, text, xhr) {
-      callback(null, xhr, data);
-    }
-  , error: function(xhr, text, error) {
-      callback(xhr.status, xhr);
-    }
-  });
-}
-
-/**
- * Wrapper for post
- */
-
-function post(url, data, callback, context) {
-  $.ajax({
-    url: PERFECT_API_URL + url
-  , type: 'POST'
-  , headers: {
-      'X-Perfect-API-Key': window.PERFECT_API_KEY
-    , 'X-Perfect-API-Version': PERFECT_API_VERSION
-    }
-  , data: data
-  , success: function(data, text, xhr) {
-      callback(null, xhr, data);
-    }
-  , error: function(xhr, text, error) {
-      callback(xhr.status, xhr);
-    }
-  });
-}
-
-/**
  * Add an alert
  */
 
 function addAlert(field, message) {
-  $('#perfect-res-form-alert').append('<div class="perfect-res-alert perfect-res-' + field + '-alert"><button class="perfect-res-alert-close" data-dismiss="perfect-res-' + field + '-alert">x</button>' + message + '</div>');
-  $('#perfect-res-form-alert .perfect-res-' + field + '-alert button').click(function() {
-    var alert = $(this).attr('data-dismiss');
-    $('.' + alert).remove();
+  var $alerts = document.getElementById('perfect-alerts');
+
+  $alerts.innerHTML += alertTemplate({
+    field: field
+  , message: message
   });
-  $('#perfect-res-' + field).addClass('perfect-res-error');
-  $('#perfect-res-' + field + ':input').change(function() {
-    $(this).removeClass('perfect-res-error');
+
+  var $button = $alerts.getElementsByTagName('button')[0]
+    , $field = document.getElementById('perfect-' + field);
+
+  classes($field).add('perfect-error');
+
+  events.bind($button, 'click', function(e) {
+    var dismiss = e.target.attributes['data-dismiss'];
+    $alerts.getElementsByClassName(dismiss)[0].remove();
+  });
+
+  events.bind($field, 'change', function(e) {
+    classes($field).remove('perfect-error');
   });
 }
 
@@ -298,12 +334,17 @@ function addAlert(field, message) {
  */
 
 function setTimeAndSubmitDisabled(disabled) {
-  if (!disabled) {
-    disabled = true;
-  }
+  debug('setting time and submit disabled (%s)', disabled);
+  var $time = document.getElementById('perfect-time')
+    , $submit = document.getElementById('perfect-submit');
 
-  $('#perfect-res-time select').attr('disabled', disabled);
-  $('#perfect-res-buttons input').attr('disabled', disabled);
+  if (disabled) {
+    $time.setAttribute('disabled');
+    $submit.setAttribute('disabled');
+  } else {
+    $time.removeAttribute('disabled');
+    $submit.removeAttribute('disabled');
+  }
 }
 
 /**
@@ -311,7 +352,8 @@ function setTimeAndSubmitDisabled(disabled) {
  */
 
 function getPartySize() {
-  return parseInt($('#perfect-res-party-size select').val(), 10);
+  var $partySize = document.getElementById('perfect-party-size');
+  return parseInt(value($partySize), 10);
 }
 
 /**
@@ -319,11 +361,97 @@ function getPartySize() {
  */
 
 function getDate() {
-  var date = new Date($('#perfect-res-date input').val());
+  var $date = document.getElementById('perfect-date')
+    , date = new Date(value($date));
   date.setDate(date.getDate() + 1);
+  
   if (isNaN(date.valueOf())) {
-    var text = $('#perfect-res-date input').val().split('-');
+    var text = value($date).split('-');
     date = new Date(text[0], text[1] - 1, text[2]);
   }
+
   return date;
+}
+
+/**
+ * Numeric input only
+ */
+
+function numericInputOnly(e) {
+  var key = e.charCode || e.keyCode || 0;
+  if (key === 8 || key === 46 || (key >= 37 && key <= 40) || (key >= 48 && key <= 57 && !e.shiftKey) || (key >= 96 && key <= 105 && !e.shiftKey)) {
+    return;
+  } else {
+    e.preventDefault();
+  }
+}
+
+/**
+ * Spin
+ */
+
+function spin() {
+  var spinner = new Spinner()
+    , $perfectSpinner = document.getElementById('perfect-spinner');
+  if ($perfectSpinner) {
+    $perfectSpinner.appendChild(spinner.el);
+  }
+
+  return {
+    stop: function() {
+      spinner.stop();
+      if ($perfectSpinner) {
+        $perfectSpinner.innerText = null;
+      }
+    }
+  };
+}
+
+/**
+ * Wrapper for get
+ */
+
+function get(url, callback) {
+  var spinner = spin();
+  superagent
+  .get(PERFECT_API_URL + url)
+  .set({
+    'X-Perfect-API-Key': PERFECT_API_KEY
+  , 'X-Perfect-API-Version': PERFECT_API_VERSION
+  })
+  .end(function(err, res) {
+    spinner.stop();
+    if (err) {
+      callback(err, res);
+    } else if (res.error) {
+      callback(res.error, res);
+    } else {
+      callback(null, res.body);
+    }
+  });
+}
+
+/**
+ * Wrapper for post
+ */
+
+function post(url, data, callback) {
+  var spinner = spin();
+  superagent
+  .post(PERFECT_API_URL + url)
+  .send(data)
+  .set({
+    'X-Perfect-API-Key': PERFECT_API_KEY
+  , 'X-Perfect-API-Version': PERFECT_API_VERSION
+  })
+  .end(function(err, res) {
+    spinner.stop();
+    if (err) {
+      callback(err, res);
+    } else if (res.error) {
+      callback(res.error, res);
+    } else {
+      callback(null, res.body);
+    }
+  });
 }
