@@ -7,7 +7,6 @@
   "dependencies": {
     "component/classes": "*",
     "component/event": "*",
-    "component/jquery": "*",
     "component/spinner": "*",
     "component/value": "*",
     "jb55/domready": "*",
