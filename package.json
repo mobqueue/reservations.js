@@ -1,6 +1,6 @@
 {
   "name": "reservations.js",
-  "version": "0.0.0",
+  "version": "1.4.0",
   "description": "Embedded reservation form for Perfect",
   "main": "index.js",
   "directories": {

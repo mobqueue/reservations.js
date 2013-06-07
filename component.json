@@ -1,8 +1,8 @@
 {
-  "name": "reservation-form.js",
-  "repo": "mobqueue/reservation-form.js",
+  "name": "reservations.js",
+  "repo": "mobqueue/reservations.js",
   "description": "Embeddable reservation form for restaurants.",
-  "version": "0.0.1",
+  "version": "1.4.0",
   "keywords": [],
   "dependencies": {
     "component/classes": "*",
