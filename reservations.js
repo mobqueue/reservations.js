@@ -64,7 +64,6 @@ require.aliases = {};
 
 require.resolve = function(path) {
   if (path.charAt(0) === '/') path = path.slice(1);
-  var index = path + '/index.js';
 
   var paths = [
     path,
@@ -77,10 +76,7 @@ require.resolve = function(path) {
   for (var i = 0; i < paths.length; i++) {
     var path = paths[i];
     if (require.modules.hasOwnProperty(path)) return path;
-  }
-
-  if (require.aliases.hasOwnProperty(index)) {
-    return require.aliases[index];
+    if (require.aliases.hasOwnProperty(path)) return require.aliases[path];
   }
 };
 
@@ -213,7 +209,6 @@ module.exports = function(arr, obj){
 };
 });
 require.register("component-classes/index.js", function(exports, require, module){
-
 /**
  * Module dependencies.
  */
@@ -252,6 +247,7 @@ module.exports = function(el){
  */
 
 function ClassList(el) {
+  if (!el) throw new Error('A DOM element reference is required');
   this.el = el;
   this.list = el.classList;
 }
@@ -358,8 +354,9 @@ ClassList.prototype.toggle = function(name){
  */
 
 ClassList.prototype.array = function(){
-  var arr = this.el.className.split(re);
-  if ('' === arr[0]) arr.pop();
+  var str = this.el.className.replace(/^\s+|\s+$/g, '');
+  var arr = str.split(re);
+  if ('' === arr[0]) arr.shift();
   return arr;
 };
 
@@ -447,12 +444,20 @@ module.exports = function(canvas){
 });
 require.register("component-raf/index.js", function(exports, require, module){
 
-module.exports = window.requestAnimationFrame
+/**
+ * Expose `requestAnimationFrame()`.
+ */
+
+exports = module.exports = window.requestAnimationFrame
   || window.webkitRequestAnimationFrame
   || window.mozRequestAnimationFrame
   || window.oRequestAnimationFrame
   || window.msRequestAnimationFrame
   || fallback;
+
+/**
+ * Fallback implementation.
+ */
 
 var prev = new Date().getTime();
 function fallback(fn) {
@@ -461,6 +466,20 @@ function fallback(fn) {
   setTimeout(fn, ms);
   prev = curr;
 }
+
+/**
+ * Cancel.
+ */
+
+var cancel = window.cancelAnimationFrame
+  || window.webkitCancelAnimationFrame
+  || window.mozCancelAnimationFrame
+  || window.oCancelAnimationFrame
+  || window.msCancelAnimationFrame;
+
+exports.cancel = function(id){
+  cancel.call(window, id);
+};
 
 });
 require.register("component-spinner/index.js", function(exports, require, module){
@@ -486,6 +505,7 @@ function Spinner() {
   var self = this;
   this.percent = 0;
   this.el = document.createElement('canvas');
+  this.el.className = 'spinner';
   this.ctx = this.el.getContext('2d');
   this.size(50);
   this.fontSize(11);
@@ -1184,7 +1204,6 @@ module.exports = function(arr, fn, initial){
 };
 });
 require.register("visionmedia-superagent/lib/client.js", function(exports, require, module){
-
 /**
  * Module dependencies.
  */
@@ -1474,16 +1493,17 @@ function params(str){
  * @api private
  */
 
-function Response(xhr, options) {
+function Response(req, options) {
   options = options || {};
-  this.xhr = xhr;
-  this.text = xhr.responseText;
-  this.setStatusProperties(xhr.status);
-  this.header = this.headers = parseHeader(xhr.getAllResponseHeaders());
+  this.req = req;
+  this.xhr = this.req.xhr;
+  this.text = this.xhr.responseText;
+  this.setStatusProperties(this.xhr.status);
+  this.header = this.headers = parseHeader(this.xhr.getAllResponseHeaders());
   // getAllResponseHeaders sometimes falsely returns "" for CORS requests, but
   // getResponseHeader still works. so we get content-type even if getting
   // other headers fails.
-  this.header['content-type'] = xhr.getResponseHeader('content-type');
+  this.header['content-type'] = this.xhr.getResponseHeader('content-type');
   this.setHeaderProperties(this.header);
   this.body = this.parseBody(this.text);
 }
@@ -1595,9 +1615,16 @@ Response.prototype.setStatusProperties = function(status){
  */
 
 Response.prototype.toError = function(){
-  var msg = 'got ' + this.status + ' response';
+  var req = this.req;
+  var method = req.method;
+  var path = req.path;
+
+  var msg = 'cannot ' + method + ' ' + path + ' (' + this.status + ')';
   var err = new Error(msg);
   err.status = this.status;
+  err.method = method;
+  err.path = path;
+
   return err;
 };
 
@@ -1623,20 +1650,18 @@ function Request(method, url) {
   this.url = url;
   this.header = {};
   this._header = {};
-  this.set('X-Requested-With', 'XMLHttpRequest');
   this.on('end', function(){
-    var res = new Response(self.xhr);
+    var res = new Response(self);
     if ('HEAD' == method) res.text = null;
     self.callback(null, res);
   });
 }
 
 /**
- * Inherit from `Emitter.prototype`.
+ * Mixin `Emitter`.
  */
 
-Request.prototype = new Emitter;
-Request.prototype.constructor = Request;
+Emitter(Request.prototype);
 
 /**
  * Set timeout to `ms`.
@@ -1782,7 +1807,7 @@ Request.prototype.auth = function(user, pass){
 
 Request.prototype.query = function(val){
   if ('string' != typeof val) val = serialize(val);
-  this._query.push(val);
+  if (val) this._query.push(val);
   return this;
 };
 
@@ -2145,7 +2170,7 @@ request.put = function(url, data, fn){
 module.exports = request;
 
 });
-require.register("reservation-form.js/index.js", function(exports, require, module){
+require.register("reservations.js/index.js", function(exports, require, module){
 
 /**
  * Dependencies
@@ -2169,7 +2194,7 @@ var alertTemplate = require('./template/alert')
 
 var PERFECT_API_KEY = null
   , PERFECT_API_URL = 'https://api.perfec.tt/restaurant/public'
-  , PERFECT_API_VERSION = '1.4.0';
+  , PERFECT_API_VERSION = '1.4.1';
 
 /**
  * Run
@@ -2605,7 +2630,7 @@ function post(url, data, callback) {
 }
 
 });
-require.register("reservation-form.js/template/alert.js", function(exports, require, module){
+require.register("reservations.js/template/alert.js", function(exports, require, module){
 module.exports = function anonymous(obj) {
 
   function escape(html) {
@@ -2627,7 +2652,7 @@ module.exports = function anonymous(obj) {
   return "<div class=\"perfect-alert perfect-" + escape(obj.field) + "-alert\"><button class=\"perfect-alert-close\" data-dismiss=\"perfect-" + escape(obj.field) + "-alert\">x</button>" + escape(obj.message) + "</div>"
 }
 });
-require.register("reservation-form.js/template/confirm.js", function(exports, require, module){
+require.register("reservations.js/template/confirm.js", function(exports, require, module){
 module.exports = function anonymous(obj) {
 
   function escape(html) {
@@ -2649,7 +2674,7 @@ module.exports = function anonymous(obj) {
   return "<div id=\"perfect-confirm\">\n  <h3>Confirm Reservation</h3>\n  <p>Confirm that you would like to create a reservation for " + escape(obj.name) + " with party of " + escape(obj.partySize) + " on " + escape(obj.date) + " at " + escape(obj.time) + ". You will not be able to create another reservation at this restaurant on this date.</p>\n  <button id=\"perfect-confirm-button\">Confirm Reservation</button>\n  <button id=\"perfect-go-back\">Go Back</button>\n</div>"
 }
 });
-require.register("reservation-form.js/template/form.js", function(exports, require, module){
+require.register("reservations.js/template/form.js", function(exports, require, module){
 module.exports = function anonymous(obj) {
 
   function escape(html) {
@@ -2671,7 +2696,7 @@ module.exports = function anonymous(obj) {
   return "<form action=\"#\">\n  <fieldset>\n    <legend>Reservations</legend>\n    <div id=\"perfect-spinner\"></div>\n    <div id=\"perfect-create\">\n      <h3>Find a Reservation</h3>\n      <div id=\"perfect-alerts\" class=\"perfect-input-group\"></div>\n      <div class=\"perfect-input-group\">\n        <label for=\"name\">Name</label>\n        <input id=\"perfect-name\" type=\"text\" name=\"name\" maxlength=\"40\" required autofocus>\n      </div>\n      <div class=\"perfect-input-group\">\n        <label for=\"phone\">Phone</label>\n        <input id=\"perfect-phone\" type=\"tel\" name=\"phone\" maxlength=\"10\" required>\n        <span>Phone must be able to receive SMS messages.</span>\n      </div>\n      <div class=\"perfect-input-group\">\n        <label for=\"email\">Email</label>\n        <input id=\"perfect-email\" type=\"email\" name=\"email\" maxlength=\"50\" required>\n      </div>\n      <div class=\"perfect-input-group\">\n        <label for=\"date\">Date</label>\n        <input id=\"perfect-date\" type=\"date\" name=\"date\" required>\n      </div>\n      <div class=\"perfect-input-group\">\n        <label for=\"party-size\">Party Size</label>\n        <select id=\"perfect-party-size\" name=\"party-size\">\n          <option value=\"0\" selected=\"true\">Select Size</option>\n        </select>\n      </div>\n      <div class=\"perfect-input-group\">\n        <label for=\"time\">Time</label>\n        <select id=\"perfect-time\" name=\"time\" disabled=\"true\"></select>\n      </div>\n      <div class=\"perfect-input-group\">\n        <input id=\"perfect-submit\" type=\"submit\" value=\"Make Reservation\" disabled=\"true\">\n      </div>\n    </div>\n  </fieldset>\n</form>"
 }
 });
-require.register("reservation-form.js/template/success.js", function(exports, require, module){
+require.register("reservations.js/template/success.js", function(exports, require, module){
 module.exports = function anonymous(obj) {
 
   function escape(html) {
@@ -2693,35 +2718,43 @@ module.exports = function anonymous(obj) {
   return "<div id=\"perfect-success\">\n  <h3>Reservation Confirmed</h3>\n  <p>Your reservation for a party of " + escape(obj.partySize) + " on " + escape(obj.date) + " at " + escape(obj.time) + " has been created. You will receive a confirmation text shortly.</p>\n  <p>We look forward to seeing you then!</p>\n</div>"
 }
 });
-require.alias("component-classes/index.js", "reservation-form.js/deps/classes/index.js");
+
+
+
+
+
+
+
+
+
+require.alias("component-classes/index.js", "reservations.js/deps/classes/index.js");
 require.alias("component-classes/index.js", "classes/index.js");
 require.alias("component-indexof/index.js", "component-classes/deps/indexof/index.js");
 
-require.alias("component-event/index.js", "reservation-form.js/deps/event/index.js");
+require.alias("component-event/index.js", "reservations.js/deps/event/index.js");
 require.alias("component-event/index.js", "event/index.js");
 
-require.alias("component-spinner/index.js", "reservation-form.js/deps/spinner/index.js");
+require.alias("component-spinner/index.js", "reservations.js/deps/spinner/index.js");
 require.alias("component-spinner/index.js", "spinner/index.js");
 require.alias("component-autoscale-canvas/index.js", "component-spinner/deps/autoscale-canvas/index.js");
 
 require.alias("component-raf/index.js", "component-spinner/deps/raf/index.js");
 
-require.alias("component-value/index.js", "reservation-form.js/deps/value/index.js");
-require.alias("component-value/index.js", "reservation-form.js/deps/value/index.js");
+require.alias("component-value/index.js", "reservations.js/deps/value/index.js");
+require.alias("component-value/index.js", "reservations.js/deps/value/index.js");
 require.alias("component-value/index.js", "value/index.js");
 require.alias("component-type/index.js", "component-value/deps/type/index.js");
 
 require.alias("component-value/index.js", "component-value/index.js");
-
-require.alias("jb55-domready/index.js", "reservation-form.js/deps/domready/index.js");
+require.alias("jb55-domready/index.js", "reservations.js/deps/domready/index.js");
 require.alias("jb55-domready/index.js", "domready/index.js");
 
-require.alias("visionmedia-debug/index.js", "reservation-form.js/deps/debug/index.js");
-require.alias("visionmedia-debug/debug.js", "reservation-form.js/deps/debug/debug.js");
+require.alias("visionmedia-debug/index.js", "reservations.js/deps/debug/index.js");
+require.alias("visionmedia-debug/debug.js", "reservations.js/deps/debug/debug.js");
 require.alias("visionmedia-debug/index.js", "debug/index.js");
 
-require.alias("visionmedia-superagent/lib/client.js", "reservation-form.js/deps/superagent/lib/client.js");
-require.alias("visionmedia-superagent/lib/client.js", "reservation-form.js/deps/superagent/index.js");
+require.alias("visionmedia-superagent/lib/client.js", "reservations.js/deps/superagent/lib/client.js");
+require.alias("visionmedia-superagent/lib/client.js", "reservations.js/deps/superagent/index.js");
 require.alias("visionmedia-superagent/lib/client.js", "superagent/index.js");
 require.alias("component-emitter/index.js", "visionmedia-superagent/deps/emitter/index.js");
 require.alias("component-indexof/index.js", "component-emitter/deps/indexof/index.js");
@@ -2729,13 +2762,10 @@ require.alias("component-indexof/index.js", "component-emitter/deps/indexof/inde
 require.alias("RedVentures-reduce/index.js", "visionmedia-superagent/deps/reduce/index.js");
 
 require.alias("visionmedia-superagent/lib/client.js", "visionmedia-superagent/index.js");
-
-require.alias("reservation-form.js/index.js", "reservation-form.js/index.js");
-
-if (typeof exports == "object") {
-  module.exports = require("reservation-form.js");
+require.alias("reservations.js/index.js", "reservations.js/index.js");if (typeof exports == "object") {
+  module.exports = require("reservations.js");
 } else if (typeof define == "function" && define.amd) {
-  define(function(){ return require("reservation-form.js"); });
+  define(function(){ return require("reservations.js"); });
 } else {
-  this["Reservations"] = require("reservation-form.js");
+  this["Reservations"] = require("reservations.js");
 }})();

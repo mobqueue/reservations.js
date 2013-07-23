@@ -21,7 +21,7 @@ var alertTemplate = require('./template/alert')
 
 var PERFECT_API_KEY = null
   , PERFECT_API_URL = 'https://api.perfec.tt/restaurant/public'
-  , PERFECT_API_VERSION = '1.4.0';
+  , PERFECT_API_VERSION = '1.4.1';
 
 /**
  * Run
