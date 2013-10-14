@@ -16,15 +16,19 @@ jshint: index.js
 	jshint --verbose index.js
 
 reservations.min.js: reservations.js
-	uglifyjs --output reservations.min.js reservations.js
+	component build --use component-uglifyjs --standalone Reservations --out . --name reservations.min
+	uglifyjs --output reservations.min.js reservations.min.js
 
 template/%.js: template/%.html
 	minstache < $< > $@
 
+test: reservations.js
+	open test/index.html
+
 reservations.js: build
-	component build --standalone Reservations --out . --name Reservations
+	component build --standalone Reservations --out . --name reservations
 
 watch:
 	watch $(MAKE) reservations.js
 
-.PHONY: build clean install jshint watch
+.PHONY: build clean install jshint test watch

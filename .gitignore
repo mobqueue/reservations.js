@@ -1,6 +1,8 @@
 components
 build
-confirm.js
-form.js
-success.js
+node_modules
+template/alert.js
+template/confirm.js
+template/form.js
+template/success.js
 .DS_Store

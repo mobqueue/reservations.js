@@ -2176,45 +2176,53 @@ require.register("reservations.js/index.js", function(exports, require, module){
  * Dependencies
  */
 
-var alertTemplate = require('./template/alert')
-  , classes = require('classes')
-  , confirmTemplate = require('./template/confirm')
-  , debug = require('debug')('reservations.js')
-  , domready = require('domready')
-  , events = require('event')
-  , form = require('./template/form')
-  , Spinner = require('spinner')
-  , success = require('./template/success')
-  , superagent = require('superagent')
-  , value = require('value');
+var alertTemplate = require('./template/alert');
+var classes = require('classes');
+var confirmTemplate = require('./template/confirm');
+var debug = require('debug')('reservations.js');
+var domready = require('domready');
+var events = require('event');
+var form = require('./template/form');
+var Spinner = require('spinner');
+var success = require('./template/success');
+var superagent = require('superagent');
+var value = require('value');
 
 /**
  * API Endpoints
  */
 
-var PERFECT_API_KEY = null
-  , PERFECT_API_URL = 'https://api.perfec.tt/restaurant/public'
-  , PERFECT_API_VERSION = '1.4.1';
+var PERFECT_API_KEY = null;
+var PERFECT_API_URL = 'https://api.perfec.tt/v1/restaurants';
+var PERFECT_API_VERSION = '1.5.0';
 
 /**
  * Run
  */
 
-module.exports.activate = function(key) {
-  debug('activating with %s', key);
-
+module.exports.activate = function(key, url) {
   // save the key
   PERFECT_API_KEY = key;
-  
+
+  // if a url is passed, set the url
+  if (url) {
+    PERFECT_API_URL = url;
+  }
+
+  debug('key %s', PERFECT_API_KEY);
+  debug('url %s', PERFECT_API_URL);
+  debug('version %s', PERFECT_API_VERSION);
+
   // make sure the dom is loaded
-  domready(function() {
+  domready(function () {
     debug('authenticating');
-    get('/auth', function(err) {
+    get('/auth', function (err, restaurant) {
       if (err) {
         debug(err);
-        window.alert('Unable to load Perfect form.\n' + err.message);
+        window.alert('Unable to load Perfect reservation form.\n' + err.message);
       } else {
         debug('authenticated');
+        PERFECT_API_URL += '/' + restaurant._id;
         setup();
       }
     });
@@ -2233,10 +2241,10 @@ function setup() {
   $perfect.innerHTML = form();
 
   // inputs
-  var $form = $perfect.getElementsByTagName('form')[0]
-    , $date = document.getElementById('perfect-date')
-    , $partySize = document.getElementById('perfect-party-size')
-    , $phone = document.getElementById('perfect-phone');
+  var $form = $perfect.getElementsByTagName('form')[0];
+  var $date = document.getElementById('perfect-date');
+  var $partySize = document.getElementById('perfect-party-size');
+  var $phone = document.getElementById('perfect-phone');
 
   // set the default date
   value($date, (new Date()).toISOString().substring(0, 10));
@@ -2259,27 +2267,29 @@ function handleFormSubmission(event) {
   debug('handling form submission');
 
   // get elements
-  var $alerts = document.getElementById('perfect-alerts')
-    , $create = document.getElementById('perfect-create')
-    , $date = document.getElementById('perfect-date')
-    , $form = document.getElementById('perfect-reservation-form')
-    , $fieldset = $form.getElementsByTagName('fieldset')[0]
-    , $name = document.getElementById('perfect-name')
-    , $phone = document.getElementById('perfect-phone')
-    , $time = document.getElementById('perfect-time');
+  var $alerts = document.getElementById('perfect-alerts');
+  var $create = document.getElementById('perfect-create');
+  var $date = document.getElementById('perfect-date');
+  var $email = document.getElementById('perfect-email');
+  var $form = document.getElementById('perfect-reservation-form');
+  var $fieldset = $form.getElementsByTagName('fieldset')[0];
+  var $name = document.getElementById('perfect-name');
+  var $phone = document.getElementById('perfect-phone');
+  var $time = document.getElementById('perfect-time');
 
   // clear alerts
   $alerts.innerHTML = null;
- 
-  var displayTime = $time.options[$time.selectedIndex].innerText
-    , displayDate = value($date);
- 
+
+  var displayTime = $time.options[$time.selectedIndex].innerText;
+  var displayDate = value($date);
+
   var reservation = {
-    name: value($name)
-  , phone: parseInt(value($phone), 10)
-  , partySize: getPartySize()
-  , date: getDate()
-  , time: parseInt(value($time), 10)
+    date: value($date),
+    email: value($email),
+    name: value($name),
+    party: getPartySize(),
+    phone: parseInt(value($phone), 10),
+    time: value($time)
   };
 
   if (isValidData(reservation)) {
@@ -2287,15 +2297,15 @@ function handleFormSubmission(event) {
     $create.style.display = 'none';
 
     $fieldset.innerHTML += confirmTemplate({
-      partySize: reservation.partySize
-    , time: displayTime
-    , date: displayDate
-    , name: reservation.name
+      partySize: reservation.party,
+      time: displayTime,
+      date: displayDate,
+      name: reservation.name
     });
 
-    var $goBack = document.getElementById('perfect-go-back')
-      , $confirmButton = document.getElementById('perfect-confirm-button');
-    
+    var $goBack = document.getElementById('perfect-go-back');
+    var $confirmButton = document.getElementById('perfect-confirm-button');
+
     events.bind($goBack, 'click', function(e) {
       debug('going back to the form');
       e.preventDefault();
@@ -2305,23 +2315,20 @@ function handleFormSubmission(event) {
     });
 
     events.bind($confirmButton, 'click', function(e) {
-      debug('confirming reservation for %s of %s at %s on %s', reservation.name, reservation.partySize, reservation.time, reservation.date);
+      debug('confirming reservation for %s of %s at %s on %s', reservation.name, reservation.party, reservation.time, reservation.date);
       e.preventDefault();
-
-      reservation.time = midnight(reservation.date).valueOf() + reservation.time * 1000 * 60;
-      delete reservation.date;
 
       post('/reservations', reservation, function(err) {
         document.getElementById('perfect-confirm').remove();
         if (err) {
           document.getElementById('perfect-create').style.display = 'block';
-          addAlert('form', 'There was a problem creating your reservation. If you have already created a reservation with this phone number you will not be able to create a second on the same day. Please refresh the page and try again.');
+          addAlert('reservation-form', 'There was a problem creating your reservation. If you have already created a reservation with this phone number you will not be able to create a second on the same day. Please refresh the page and try again.');
         } else {
           // show success screen
           $fieldset.innerHTML += success({
-            partySize: reservation.partySize
-          , time: displayTime
-          , date: displayDate
+            partySize: reservation.party,
+            time: displayTime,
+            date: displayDate
           });
         }
       });
@@ -2337,8 +2344,10 @@ function handleFormSubmission(event) {
 
 function handleDateChange(event) {
   debug('handling date change');
-  var date = getDate()
-    , today = midnight(new Date());
+
+  var date = getDate();
+  var today = midnight(new Date());
+
   if (date.valueOf() < today.valueOf()) {
     value(event.target, today.toISOString().substring(0, 10));
   } else if (today.getMonth() < date.getMonth() && today.getDate() < date.getDate()) {
@@ -2355,29 +2364,34 @@ function handleDateChange(event) {
 function retrieveAvailableTimes() {
   debug('retrieving available times');
 
-  var $alerts = document.getElementById('perfect-alerts')
-    , partySize = getPartySize()
-    , date = getDate()
-    , $time = document.getElementById('perfect-time');
+  var $alerts = document.getElementById('perfect-alerts');
+  var partySize = getPartySize();
+  var date = value(document.getElementById('perfect-date'));
+  var $time = document.getElementById('perfect-time');
 
   $alerts.innerHTML = null;
 
-  if (isNaN(date.getTime()) || date.valueOf() < midnight(new Date()).valueOf() || partySize === 0) {
+  if (partySize === 0) {
     setTimeAndSubmitDisabled(true);
   } else {
-    get('/reservations/availableTimes/' + partySize + '/' + (date.getFullYear()) + '/' + (date.getMonth() + 1) + '/' + (date.getDate()), function(err, data) {
-      if (!err) {
+    get('/available-times', {
+      party: partySize,
+      date: date
+    }, function (err, data) {
+      if (err) {
+        addAlert('date', err.message);
+      } else {
         $time.innerHTML = null;
 
         if (data.length && data.length > 0) {
           for (var i = 0; i < data.length; i++) {
-            var time = data[i]
-              , h = time > 720 ? time / 60 - 12 : time / 60 
-              , m = time % 60 === 0 ? '00' : '' + (time % 60)
-              , a = time > 720 ? ' pm' : ' am'
-              , format = parseInt(h, 10) + ':' + m + a
-              , option = document.createElement('option');
-            
+            var time = data[i];
+            var h = parseInt(time.split(':')[0], 10);
+            var a = h > 12 ? ' pm' : ' am';
+            var format = (h > 12 ? h - 12 : h) + ':' + time.split(':')[1] + a;
+
+            var option = document.createElement('option');
+
             option.innerHTML = format;
             option.value = time;
 
@@ -2399,12 +2413,12 @@ function retrieveAvailableTimes() {
 
 function getAvailablePartySizes() {
   debug('get available party sizes');
-  get('/reservations/partySizes', function(err, partySizes) {
+  get('/party-sizes', function (err, partySizes) {
     if (!err) {
       var $partySize = document.getElementById('perfect-party-size');
       for (var i = 0; i < partySizes.length; i++) {
-        var option = document.createElement('option')
-          , size = partySizes[i];
+        var option = document.createElement('option');
+        var size = partySizes[i];
 
         option.innerText = size;
         option.value = size;
@@ -2422,12 +2436,12 @@ function getAvailablePartySizes() {
 function isValidData(data) {
   debug('validating data');
 
-  var name = data.name
-    , phone = data.phone
-    , date = data.date
-    , partySize = data.partySize
-    , time = data.time
-    , valid = true;
+  var name = data.name;
+  var phone = data.phone;
+  var date = getDate();
+  var partySize = data.party;
+  var time = data.time;
+  var valid = true;
 
   if (!time || time === 0) {
     addAlert('time', 'Time selected is invalid.');
@@ -2476,6 +2490,16 @@ function midnight(date) {
 }
 
 /**
+ * Get the date
+ */
+
+function getDate() {
+  var $date = document.getElementById('perfect-date');
+  var dateString = value($date);
+  return new Date(dateString.split('-'));
+}
+
+/**
  * Add an alert
  */
 
@@ -2483,12 +2507,12 @@ function addAlert(field, message) {
   var $alerts = document.getElementById('perfect-alerts');
 
   $alerts.innerHTML += alertTemplate({
-    field: field
-  , message: message
+    field: field,
+    message: message
   });
 
-  var $button = $alerts.getElementsByTagName('button')[0]
-    , $field = document.getElementById('perfect-' + field);
+  var $button = $alerts.getElementsByTagName('button')[0];
+  var $field = document.getElementById('perfect-' + field);
 
   classes($field).add('perfect-error');
 
@@ -2508,8 +2532,8 @@ function addAlert(field, message) {
 
 function setTimeAndSubmitDisabled(disabled) {
   debug('setting time and submit disabled (%s)', disabled);
-  var $time = document.getElementById('perfect-time')
-    , $submit = document.getElementById('perfect-submit');
+  var $time = document.getElementById('perfect-time');
+  var $submit = document.getElementById('perfect-submit');
 
   if (disabled) {
     $time.setAttribute('disabled');
@@ -2530,29 +2554,12 @@ function getPartySize() {
 }
 
 /**
- * Get the given date
- */
-
-function getDate() {
-  var $date = document.getElementById('perfect-date')
-    , date = new Date(value($date));
-  date.setDate(date.getDate() + 1);
-  
-  if (isNaN(date.valueOf())) {
-    var text = value($date).split('-');
-    date = new Date(text[0], text[1] - 1, text[2]);
-  }
-
-  return date;
-}
-
-/**
  * Numeric input only
  */
 
 function numericInputOnly(e) {
   var key = e.charCode || e.keyCode || 0;
-  if (key === 8 || key === 46 || (key >= 37 && key <= 40) || (key >= 48 && key <= 57 && !e.shiftKey) || (key >= 96 && key <= 105 && !e.shiftKey)) {
+  if (key === 8 || key === 9 || key === 46 || (key >= 37 && key <= 40) || (key >= 48 && key <= 57 && !e.shiftKey) || (key >= 96 && key <= 105 && !e.shiftKey)) {
     return;
   } else {
     e.preventDefault();
@@ -2564,8 +2571,9 @@ function numericInputOnly(e) {
  */
 
 function spin() {
-  var spinner = new Spinner()
-    , $perfectSpinner = document.getElementById('perfect-spinner');
+  var spinner = new Spinner();
+  var $perfectSpinner = document.getElementById('perfect-spinner');
+
   if ($perfectSpinner) {
     $perfectSpinner.appendChild(spinner.el);
   }
@@ -2584,10 +2592,16 @@ function spin() {
  * Wrapper for get
  */
 
-function get(url, callback) {
+function get(url, query, callback) {
+  if (arguments.length === 2) {
+    callback = query;
+    query = {};
+  }
+
   var spinner = spin();
   superagent
   .get(PERFECT_API_URL + url)
+  .query(query)
   .set({
     'X-Perfect-API-Key': PERFECT_API_KEY
   , 'X-Perfect-API-Version': PERFECT_API_VERSION

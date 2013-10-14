@@ -1,12 +1,15 @@
 <html>
   <head>
     <title>Test</title>
+    <script type="text/javascript">
+      localStorage.setItem('debug', 'reservations.js');
+    </script>
   </head>
   <body>
     <div id="perfect-reservation-form"></div>
     <script type="text/javascript" src="../reservations.js"></script>
     <script type="text/javascript">
-      Reservations.activate('8c3ef6da39a942fab24933ad73f7991e');
+      Reservations.activate('c72b2c670a8a408b938326d0db204582', 'http://localhost:5000/v1/restaurants');
     </script>
   </body>
 </html>
