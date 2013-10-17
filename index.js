@@ -322,8 +322,8 @@ function midnight(date) {
 
 function getDate() {
   var $date = document.getElementById('perfect-date');
-  var dateString = value($date);
-  return new Date(dateString.split('-'));
+  var vals = value($date).split('-');
+  return new Date(vals[0], vals[1] - 1, vals[2]);
 }
 
 /**

@@ -27,10 +27,14 @@ function require(path, parent, orig) {
   // perform real require()
   // by invoking the module's
   // registered function
-  if (!module.exports) {
-    module.exports = {};
-    module.client = module.component = true;
-    module.call(this, module.exports, require.relative(resolved), module);
+  if (!module._resolving && !module.exports) {
+    var mod = {};
+    mod.exports = {};
+    mod.client = mod.component = true;
+    module._resolving = true;
+    module.call(this, mod.exports, require.relative(resolved), mod);
+    delete module._resolving;
+    module.exports = mod.exports;
   }
 
   return module.exports;
@@ -2495,8 +2499,8 @@ function midnight(date) {
 
 function getDate() {
   var $date = document.getElementById('perfect-date');
-  var dateString = value($date);
-  return new Date(dateString.split('-'));
+  var vals = value($date).split('-');
+  return new Date(vals[0], vals[1] - 1, vals[2]);
 }
 
 /**
@@ -2707,7 +2711,7 @@ module.exports = function anonymous(obj) {
     return '';
   };
 
-  return "<form action=\"#\">\n  <fieldset>\n    <legend>Reservations</legend>\n    <div id=\"perfect-spinner\"></div>\n    <div id=\"perfect-create\">\n      <h3>Find a Reservation</h3>\n      <div id=\"perfect-alerts\" class=\"perfect-input-group\"></div>\n      <div class=\"perfect-input-group\">\n        <label for=\"name\">Name</label>\n        <input id=\"perfect-name\" type=\"text\" name=\"name\" maxlength=\"40\" required autofocus>\n      </div>\n      <div class=\"perfect-input-group\">\n        <label for=\"phone\">Phone</label>\n        <input id=\"perfect-phone\" type=\"tel\" name=\"phone\" maxlength=\"10\" required>\n        <span>Phone must be able to receive SMS messages.</span>\n      </div>\n      <div class=\"perfect-input-group\">\n        <label for=\"email\">Email</label>\n        <input id=\"perfect-email\" type=\"email\" name=\"email\" maxlength=\"50\" required>\n      </div>\n      <div class=\"perfect-input-group\">\n        <label for=\"date\">Date</label>\n        <input id=\"perfect-date\" type=\"date\" name=\"date\" required>\n      </div>\n      <div class=\"perfect-input-group\">\n        <label for=\"party-size\">Party Size</label>\n        <select id=\"perfect-party-size\" name=\"party-size\">\n          <option value=\"0\" selected=\"true\">Select Size</option>\n        </select>\n      </div>\n      <div class=\"perfect-input-group\">\n        <label for=\"time\">Time</label>\n        <select id=\"perfect-time\" name=\"time\" disabled=\"true\"></select>\n      </div>\n      <div class=\"perfect-input-group\">\n        <input id=\"perfect-submit\" type=\"submit\" value=\"Make Reservation\" disabled=\"true\">\n      </div>\n    </div>\n  </fieldset>\n</form>"
+  return "<form action=\"#\">\n  <fieldset>\n    <legend>Reservations</legend>\n    <div id=\"perfect-spinner\"></div>\n    <div id=\"perfect-create\">\n      <h3>Find a Reservation</h3>\n      <div id=\"perfect-alerts\" class=\"perfect-input-group\"></div>\n      <div class=\"perfect-input-group\">\n        <label for=\"name\">Name</label>\n        <input id=\"perfect-name\" type=\"text\" name=\"name\" maxlength=\"40\" required autofocus>\n      </div>\n      <div class=\"perfect-input-group\">\n        <label for=\"phone\">Phone</label>\n        <input id=\"perfect-phone\" type=\"tel\" name=\"phone\" maxlength=\"10\" required>\n        <span>Phone must be able to receive SMS messages.</span>\n      </div>\n      <div class=\"perfect-input-group\">\n        <label for=\"email\">Email</label>\n        <input id=\"perfect-email\" type=\"email\" name=\"email\" maxlength=\"50\" required>\n      </div>\n      <div class=\"perfect-input-group\">\n        <label for=\"date\">Date</label>\n        <input id=\"perfect-date\" type=\"date\" name=\"date\" required>\n      </div>\n      <div class=\"perfect-input-group\">\n        <label for=\"party-size\">Party Size</label>\n        <select id=\"perfect-party-size\" name=\"party-size\">\n          <option value=\"0\" selected=\"true\">Select Size</option>\n        </select>\n      </div>\n      <div class=\"perfect-input-group\">\n        <label for=\"time\">Time</label>\n        <select id=\"perfect-time\" name=\"time\" disabled=\"disabled\"></select>\n      </div>\n      <div class=\"perfect-input-group\">\n        <input id=\"perfect-submit\" type=\"submit\" value=\"Make Reservation\" disabled=\"disabled\">\n      </div>\n    </div>\n  </fieldset>\n</form>"
 }
 });
 require.register("reservations.js/template/success.js", function(exports, require, module){
