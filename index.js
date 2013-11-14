@@ -21,7 +21,7 @@ var value = require('value');
 
 var PERFECT_API_KEY = null;
 var PERFECT_API_URL = 'https://api.perfec.tt/v1/restaurants';
-var PERFECT_API_VERSION = '1.5.0';
+var PERFECT_API_VERSION = '1.5.1';
 
 /**
  * Run
@@ -149,7 +149,7 @@ function handleFormSubmission(event) {
         document.getElementById('perfect-confirm').remove();
         if (err) {
           document.getElementById('perfect-create').style.display = 'block';
-          addAlert('reservation-form', 'There was a problem creating your reservation. If you have already created a reservation with this phone number you will not be able to create a second on the same day. Please refresh the page and try again.');
+          addAlert('reservation-form', 'There was a problem creating your reservation. If you have already created a reservation at this restaurant you will not be able to create a second one in a similar timespan.');
         } else {
           // show success screen
           $fieldset.innerHTML += success({
