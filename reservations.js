@@ -2198,7 +2198,7 @@ var value = require('value');
 
 var PERFECT_API_KEY = null;
 var PERFECT_API_URL = 'https://api.perfec.tt/v1/restaurants';
-var PERFECT_API_VERSION = '1.5.0';
+var PERFECT_API_VERSION = '1.5.1';
 
 /**
  * Run
@@ -2326,7 +2326,7 @@ function handleFormSubmission(event) {
         document.getElementById('perfect-confirm').remove();
         if (err) {
           document.getElementById('perfect-create').style.display = 'block';
-          addAlert('reservation-form', 'There was a problem creating your reservation. If you have already created a reservation with this phone number you will not be able to create a second on the same day. Please refresh the page and try again.');
+          addAlert('reservation-form', 'There was a problem creating your reservation. If you have already created a reservation at this restaurant you will not be able to create a second one in a similar timespan.');
         } else {
           // show success screen
           $fieldset.innerHTML += success({
@@ -2689,7 +2689,7 @@ module.exports = function anonymous(obj) {
     return '';
   };
 
-  return "<div id=\"perfect-confirm\">\n  <h3>Confirm Reservation</h3>\n  <p>Confirm that you would like to create a reservation for " + escape(obj.name) + " with party of " + escape(obj.partySize) + " on " + escape(obj.date) + " at " + escape(obj.time) + ". You will not be able to create another reservation at this restaurant on this date.</p>\n  <button id=\"perfect-confirm-button\">Confirm Reservation</button>\n  <button id=\"perfect-go-back\">Go Back</button>\n</div>"
+  return "<div id=\"perfect-confirm\">\n  <h3>Confirm Reservation</h3>\n  <p>Confirm that you would like to create a reservation for " + escape(obj.name) + " with party of " + escape(obj.partySize) + " on " + escape(obj.date) + " at " + escape(obj.time) + ".</p>\n  <button id=\"perfect-confirm-button\">Confirm Reservation</button>\n  <button id=\"perfect-go-back\">Go Back</button>\n</div>"
 }
 });
 require.register("reservations.js/template/form.js", function(exports, require, module){
@@ -2733,7 +2733,7 @@ module.exports = function anonymous(obj) {
     return '';
   };
 
-  return "<div id=\"perfect-success\">\n  <h3>Reservation Confirmed</h3>\n  <p>Your reservation for a party of " + escape(obj.partySize) + " on " + escape(obj.date) + " at " + escape(obj.time) + " has been created. You will receive a confirmation text shortly.</p>\n  <p>We look forward to seeing you then!</p>\n</div>"
+  return "<div id=\"perfect-success\">\n  <h3>Reservation Confirmed</h3>\n  <p>Your reservation for a party of " + escape(obj.partySize) + " on " + escape(obj.date) + " at " + escape(obj.time) + " has been created! You will receive a confirmation email shortly.</p>\n  <p>We look forward to seeing you then!</p>\n</div>"
 }
 });
 
